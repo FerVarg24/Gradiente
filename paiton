@@ -1,0 +1,167 @@
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+"""from langchain_community.chat_models import ChatOpenAI
+from langchain.schema import HumanMessage"""
+
+import io
+import base64
+from sympy import symbols, diff, sympify, lambdify
+import re
+import matplotlib.pyplot as plt
+import numpy as np
+
+"""from langchain_core.prompts import PromptTemplate, SystemMessagePromptTemplate, HumanMessagePromptTemplate, ChatPromptTemplate"""
+
+app = Flask(__name__)
+CORS(app)
+
+api = ""
+
+"""chatgpt = ChatOpenAI(openai_api_key=api)
+
+@app.route("/conse", methods=['POST'])
+def conse():
+    user_message = request.json['message']
+    # Armar el prompt del sistema y del humano
+    prompt_temp_sistema = PromptTemplate(template='{emocion},podrias darme un consejo que pueda aplicar? (eres un psicologo profesional,responde con una longitud de 100-200 palabras de forma humana)', input_variables=["emocion"])
+    template_sistema = SystemMessagePromptTemplate(prompt=prompt_temp_sistema)
+    prompt_temp_humano = PromptTemplate(template="{texto}", input_variables=["texto"])
+    template_humano = HumanMessagePromptTemplate(prompt=prompt_temp_humano)
+    chat_prompt = ChatPromptTemplate.from_messages([template_sistema, template_humano])
+
+    # Usar la emoción del mensaje del usuario y el texto vacío para el humano (ajustar según sea necesario)
+    chat_prompt_value = chat_prompt.format_prompt(emocion=user_message, texto="").to_messages()
+    chat_resp = chatgpt(chat_prompt_value)
+
+    response_text = chat_resp.content
+
+    return jsonify({"message": response_text})
+
+@app.route("/apo", methods=['POST'])
+def apo():
+    user_message = request.json['message']
+    # Armar el prompt del sistema y del humano
+    prompt_temp_sistema = PromptTemplate(template='{sit}, proporcioname un mensaje de apoyo para sentirme mejor (eres un psicologo profesional,responde con una longitud de 100-200 palabras)', input_variables=["sit"])
+    template_sistema = SystemMessagePromptTemplate(prompt=prompt_temp_sistema)
+    prompt_temp_humano = PromptTemplate(template="{texto}", input_variables=["texto"])
+    template_humano = HumanMessagePromptTemplate(prompt=prompt_temp_humano)
+    chat_prompt = ChatPromptTemplate.from_messages([template_sistema, template_humano])
+
+    # Usar la emoción del mensaje del usuario y el texto vacío para el humano (ajustar según sea necesario)
+    chat_prompt_value = chat_prompt.format_prompt(sit=user_message, texto="").to_messages()
+    chat_resp = chatgpt(chat_prompt_value)
+
+    response_text = chat_resp.content
+
+    return jsonify({"message": response_text})
+
+@app.route("/act", methods=['POST'])
+def act():
+
+    user_message = request.json['message']
+    # Armar el prompt del sistema y del humano
+    prompt_temp_sistema = PromptTemplate(template='{caso}, dame un ejercicio de relajación que podrían ayudarme con esto', input_variables=["sit"])
+    template_sistema = SystemMessagePromptTemplate(prompt=prompt_temp_sistema)
+    prompt_temp_humano = PromptTemplate(template="{texto}", input_variables=["texto"])
+    template_humano = HumanMessagePromptTemplate(prompt=prompt_temp_humano)
+    chat_prompt = ChatPromptTemplate.from_messages([template_sistema, template_humano])
+
+    # Usar la emoción del mensaje del usuario y el texto vacío para el humano (ajustar según sea necesario)
+    chat_prompt_value = chat_prompt.format_prompt(caso=user_message, texto="").to_messages()
+    chat_resp = chatgpt(chat_prompt_value)
+
+    response_text = chat_resp.content
+
+    return jsonify({"message": response_text})
+
+@app.route("/norm", methods=['POST'])
+def norm():
+
+    user_message = request.json['message']
+    # Armar el prompt del sistema y del humano
+    prompt_temp_sistema = PromptTemplate(template='{txt}, (eres un psicologo profesional,si consideras que el texto fuera del parentesis es inapropiado indicamelo)', input_variables=["sit"])
+    template_sistema = SystemMessagePromptTemplate(prompt=prompt_temp_sistema)
+    prompt_temp_humano = PromptTemplate(template="{texto}", input_variables=["texto"])
+    template_humano = HumanMessagePromptTemplate(prompt=prompt_temp_humano)
+    chat_prompt = ChatPromptTemplate.from_messages([template_sistema, template_humano])
+
+    # Usar la emoción del mensaje del usuario y el texto vacío para el humano (ajustar según sea necesario)
+    chat_prompt_value = chat_prompt.format_prompt(txt=user_message, texto="").to_messages()
+    chat_resp = chatgpt(chat_prompt_value)
+
+    response_text = chat_resp.content
+
+    return jsonify({"message": response_text})"""
+
+
+@app.route('/graficar', methods=['POST'])
+def graficar():
+    data = request.json
+    funcion = data.get("funcion")
+    variables = data.get("variables")
+
+    try:
+        # Reemplazar ^ con ** para potencias
+        funcion = funcion.replace("^", "**")
+
+        # Insertar el operador de multiplicación explícito entre números y variables
+        funcion = re.sub(r'(\d)([a-zA-Z])', r'\1*\2', funcion)
+        funcion = re.sub(r'([a-zA-Z])(\d)', r'\1*\2', funcion)  # Opcional si hay algo como x2
+
+        # Convertir la función de string a expresión simbólica
+        expr = sympify(funcion)
+
+        # Crear las variables simbólicas
+        vars = symbols(variables)
+
+        # Calcular el gradiente
+        gradiente = []
+        for var in vars:
+            derivada = str(diff(expr, var))
+            # Eliminar * solo si no está seguido por otro *
+            derivada = re.sub(r'(?<!\*)\*(?!\*)', '', derivada)
+            gradiente.append(derivada)
+
+        # Crear el formato vectorial del gradiente
+        gradiente_str = f"∇ f = ({', '.join(gradiente)})"
+
+        # Intentar graficar solo si hay 2 o 3 variables
+        if len(variables) <= 3:
+            # Convertir la expresión simbólica a una función computable
+            f = lambdify(vars, expr, 'numpy')
+
+            # Crear un dominio para x, y
+            x_vals = np.linspace(-5, 5, 50)
+            y_vals = np.linspace(-5, 5, 50)
+            X, Y = np.meshgrid(x_vals, y_vals)
+
+            if len(variables) == 2:
+                Z = f(X, Y)  # Si solo hay dos variables, no se usa Z
+            else:
+                Z = f(X, Y, 0)  # Si hay tres variables, usamos z=0
+
+            # Convertir las coordenadas X, Y, Z a listas para enviarlas al frontend
+            graph_data = {
+                'x': X.flatten().tolist(),
+                'y': Y.flatten().tolist(),
+                'z': Z.flatten().tolist()
+            }
+
+            return jsonify({
+                "success": True,
+                "gradiente": gradiente_str,
+                "graphData": graph_data
+            })
+        else:
+            # Si hay más de 3 variables, solo devolver el gradiente
+            return jsonify({
+                "success": True,
+                "gradiente": gradiente_str,
+                "message": "No se puede graficar con más de tres variables, pero se ha calculado el gradiente."
+            })
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+if __name__ == "__main__":
+    app.run(debug=True)
